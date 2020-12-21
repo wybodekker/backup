@@ -1,0 +1,689 @@
+#!/bin/bash
+
+Version=3.17
+Myname="${0##*/}"
+
+:<<'DOC'
+= backup - backup and restore, full or partial
+
+= Synopsis
+backup [options]	
+
+== Options
+-h,--help		print this help and exit
+-H,--Help		print full documentation via less and exit
+-V,--version		print version and exit
+-f,--full		make a full backup
+-s,--show		Show a listing of the current backups
+-c,--conf=FILE		use |FILE| as the configuration file
+-r,--restore=FILE	Restore |FILE| in current directory
+-v,--verbose		print intermediate messages for debugging
+-n,--named=FILE		make partial backup to named |FILE|
+-d,--dir		show the backup directory path and exit
+
+= Description
+Back up files into zip compressed archives, or restore files from those.
+Both full and partial backups are possible. 
+
+= Configuration
+The selection of files to be backed up is governed by 6
+variables. The first two (|BackupDir| and |DirsToSearch|)
+tell where backups are stored and where files to be backed
+up are searched, respectively. The remaining variables are
+arrays of Bash regular expressions that act on the full
+pathnames of the file that are backup candidates.
+
+Important note: the Bash regular expressions (*ReToSkip
+below) will be automatically adapted by escaping any dots
+(.) in them: dots occur frequently and in unescaped form
+they stand for one character, while in the current context
+it is more useful to mean a literal dot.
+
+BackupDir	
+        is the directory where archives are stored; For
+        safety reasons you would normally make the backup
+        directory a mount point for an other disk than the
+        one(s) containing the information to be backed up.
+        
+DirsToSearch    
+        is an array of directories (including any
+        subdirectories) to be searched.
+        
+DirReToSkip     
+        is an array of regexps matching directory names to
+        be skipped; any directory for which the name matches
+        one of these expressions will not be searched for
+        files to backup; neither will any of its
+        subdirectories.
+        
+ExtReToSkip     
+        is an array of regexps matching extensions; files
+        with those extensions are skipped.
+        
+BaseReToSkip    
+        is an array of regexps matching basenames to be
+        skipped; any file for which the basename matches any
+        of these regexps will not be backed up.
+
+FileReToSkip    
+        is an array of regexps matching filenames to be
+        skipped;
+
+Here is an overview of the default settings for these variables:
+
+    BackupDir=/backup/$(hostname -s)
+ DirsToSearch=(/home /etc)
+  DirReToSkip=(t temp tmp '[Cc]ache' .thumbnails)
+  ExtReToSkip=(auk aux bak bku dep err 'lo[fgt]' msf old swp tmp toc tok)
+ BaseReToSkip=(t)
+ FileReToSkip=(~$ '#$')
+
+In principle, only the last variable (|FileReToSkip|) is
+sufficient for file selection. For example, the above values
+can be replaced with the following, equivalent, combination:
+
+    BackupDir=/backup/$(hostname -s)
+ DirsToSearch=(/home /etc)
+  DirReToSkip=()
+  ExtReToSkip=()
+ BaseReToSkip=()
+ FileReToSkip=(
+   '~$ #$'
+   '/t$'
+   '\.(auk|aux|bak|bku|dep|err|lo[fgt]|msf|old|swp|tmp|toc|tok)$'
+   '/(t|temp|tmp|[Cc]ache|.thumbnails)/'
+ )
+
+= Configuration files
+The default values for the variables described in the
+previous section can be changed by means of configuration
+files. backup looks for three configuration files, and uses
+the first it encounters:
+
+1. a file specified with the |--conf| option; if |--conf=-|
+   or |-c-| was specified, no configuration file will be
+   read at all.
+2. |~/.backup.conf|, if it exists
+3. |/etc/backup.conf|, if it exists
+
+Note that:
+- A configuration file containing the default settings shown
+  above would have no effect.
+
+- If you put alternative values for only one or a few
+  variable in your configuration file, the other variables
+  keep their default values.
+
+- If you use the |--verbose| option, files skipped because
+  of the values in these variables will be reported,
+  together with the values of the variable. Wild cards in
+  those values will then be shown in their expanded form,
+  which may be confusing. So it might be wise to put values
+  with wild cards between quotes. This is why, for example,
+  the '[Cc]ache' has been quoted in the defulat settings.
+
+- Values containing parenthesis or |#| characters need
+  quotation anyway.
+
+- There is always more than one way to exclude files from
+  backups; for example, you can exclude files with the
+  |.log| extension by specifying |ExtReToSkip=(log)| or with
+  |BaseReToSkip=('*.log')| or with
+  |FileReToSkip=('\.log$')|.
+
+= Options
+-h,--help	
+	prints help information and then exits
+-H,--Help	
+	print full documentation via less and exit
+-V,--version	
+	prints version and then exits
+-f,--full	
+        Generates a full backup. Without this option, a
+        partial (incremental) backup is made, relative to
+        the most recent backup in the backup directory, that
+        is: in |/backup/$(hostname -s)| if you did not read
+        a configuration file.
+        Full backups will obtain filenames |f001.zip|,
+        |f002.zip|, and so on. Similarly, partial backups
+        are named |p001.zip|, |p002.zip|, and so on.
+-c,--conf=FILE	
+        Use the given FILE as configuration file; Without
+        this option, backup looks for |~/.backup.conf| or,
+        if that file does not exist, for
+        |/etc/backup.conf|. If none of these is found,
+        backup fails with an error message. See the section
+        "Configuration files" above.
+-r,--restore	
+        Don't back up, but restore from old backups
+        instead. Start backup with this option in the
+        directory where the file to be restored existed
+        when it was backed up. You will see a numbered
+        listing of existing backups, from which you can
+        select one by typing its number.
+        If a file of that name already exists, it will be
+        renamed by adding a |.ver0| extension or, if that
+        exists, |.ver1| or |.ver2| et cetera.
+        You can select all backups by typing |a|; this
+        results in restoring all files with a datetime
+        string attached to the name. Or you can type |q| to
+        cancel your restore request.
+-n,--named=NAME	
+        Name for the new backup file (instead of pxxx or
+        fxxx). One application is to use this for an hourly
+        backup by adding this entry to your crontab:
+	   1 * * * * backup --named=t0$(date +%H)
+        If the name has the format |txxx|, like in the above
+        example, the backup will be relative to the most
+        recent of all files |[fpt][0-9][0-9][0-9].zip|;
+	otherwise it will be relative to the most recent of
+	|p[0-9][0-9][0-9].zip|.
+-s,--show	
+        Shows a listing of current backups with the number
+        of files, size of the backup in characters and in
+        human readable form, date, and time.
+-v,--verbose	
+	print debugging messages while running.
+
+= Author
+[Wybo Dekker](wybo@dekkerdocumenten.nl)
+
+= Copyright
+Released under the [GNU General Public License](www.gnu.org/copyleft/gpl.html)
+DOC
+
+:<<'DOC' #------ function configure --------------------------------------------
+= configure
+parameters:	-
+description:	Sets the defaults, and then applies any changes defined in the 
+		configuration file if it exists (|/etc/backup.conf| by default)
+globals  set:	 BackupDir DirsToSearch DirReToSkip ExtReToSkip
+		 BaseReToSkip FileReToSkip conffile
+globals used:	 BackupDir conffile Myname
+returns:	0
+DOC
+#-------------------------------------------------------------------------------
+configure () {
+   verbo configure
+   BackupDir=/backup/$(hostname -s)
+   # Required. The directory where backups are stored. For safety reasons
+   # you would normally make the backup directory (/backup) a mount point
+   # for an other disk than the one(s) containing the information to be
+   # backed up.
+   
+   
+   DirsToSearch=(/home /etc)
+   # Required. The directories which will be backed up.
+   
+   DirReToSkip=(t temp tmp [Cc]ache .thumbnails)
+   # Directory names that will be pruned. No files in these directories and
+   # their subdirectories will be backed up. You can only give base names
+   # here, not paths. Note that these directories can occur anywhere, not
+   # only in home directories.
+
+   ExtReToSkip=(auk aux bak bku dep err lo[fgt] msf old swp tmp toc tok)
+   # Files who's extensions match these will be skipped.
+   
+   BaseReToSkip=(t)
+
+   FileReToSkip=(~$ '#$')
+   # File regular expressions to skip: No files with names matcing any of
+   # these expressions will be backed up.
+
+   # Read first available config file in the following list, unless reading
+   # configuration files is disabled with --conf=-:
+   # 1. a file specified with the --config option
+   # 2. ~/.backup.conf
+   # 3. /etc/backup.conf
+   # If none is found, keep the defaults
+   if [[ $conffile = '-' ]]; then
+      verbo "using default configuration"
+   else
+      if [[ -z $conffile ]]; then
+         for i in $HOME/.backup.conf /etc/backup.conf; do 
+            [[ -e $i ]] && { conffile=$i; break; }
+         done
+         [[ -z $conffile ]] && die "no configuration file found in $HOME or /etc"
+      else
+         [[ -e $conffile ]] || die "specified config file ($conffile) does not exist"
+      fi
+      verbo "Configuration: $conffile"
+      # shellcheck disable=SC1090
+      source "$conffile" || die "errors sourcing configuration file ($conffile)"
+   fi
+   # Test if BackupDir is there and is writable
+   [[ -d $BackupDir ]] || die "Directory $BackupDir does not exist"
+   [[ -w $BackupDir ]] || die "$BackupDir is not writable (for you)"
+   # escape . in regexps:
+   for i in "${!DirReToSkip[@]}";  do  DirReToSkip[$i]="${DirReToSkip[$i]//./\\.}"; done
+   for i in "${!ExtReToSkip[@]}";  do  ExtReToSkip[$i]="${ExtReToSkip[$i]//./\\.}"; done
+   for i in "${!BaseReToSkip[@]}"; do BaseReToSkip[$i]="${BaseReToSkip[$i]//./\\.}"; done
+   for i in "${!FileReToSkip[@]}"; do FileReToSkip[$i]="${FileReToSkip[$i]//./\\.}"; done
+}
+
+
+:<<'DOC' #------ function latestof ---------------------------------------------
+= latestof
+parameters:	1: fileglob
+description:	print the newest file matching the fileglob
+globals  set:	-
+globals used:	-
+returns:	-
+DOC
+#-------------------------------------------------------------------------------
+latestof () {
+   local latest i
+   latest=f001.zip
+   for i; do
+      [[ $i -nt $latest ]] && latest=$i
+   done
+   echo "$latest"
+}
+
+:<<'DOC' #------ function setselector ------------------------------------------
+= setselector
+parameters:	-
+description:	Find the last full or (if the |--full| option was not used)
+		partial backup file: that file is the reference file: it's mtime
+		will be used, by setting selector to |-newer <file>|. If it's a
+		full backup, selector is made empty. 
+		If there aren't any backups yet, the backup must be full, or an
+		error message is issued.
+		Also, sets the name for the new backup file to |pnnn.zip| or
+		|fnnn.zip|, where |nnn| is one higher than that of the reference
+		file.
+globals  set:	 selector newbackup 
+globals used:	 full 
+returns:	1 if no backup file could be found.
+DOC
+#-------------------------------------------------------------------------------
+setselector () {
+   verbo setselector
+   local lastfull lastpart
+   lastfull=$(latestof f[0-9][0-9][0-9].zip)
+   if [ -z "$named" ]; then
+      # full or partial backup:
+      lastpart=$(latestof p[0-9][0-9][0-9].zip)
+   else
+      # named backup:
+      lastpart=$(latestof [fpt][0-9][0-9][0-9].zip)
+   fi
+   local n
+   if $full; then
+      selector=
+      n=1$(tr -cd '[:digit:]' <<<"${lastfull:-000}")
+      (( n++ ))
+      newbackup=f${n#1}.zip
+   else
+      [[ -z $lastfull ]] && die "Your first backup must be a full backup!"
+      selector="-newer ${lastpart:-$lastfull}"
+      n=1$(tr -cd '[:digit:]' <<<"${lastpart:-000}")
+      (( n++ ))
+      newbackup=p${n#1}.zip
+   fi
+   test -n "$named" && newbackup="$named.zip"
+}
+
+:<<'DOC' #------ function human ------------------------------------------------
+= human
+parameters:	1: a number of bytes
+description:	prints the number in human-readable form
+globals  set:	-
+globals used:	-
+returns:	0
+DOC
+#-------------------------------------------------------------------------------
+human () {
+   local u=' KMGTPEZY' s=$1 n=0
+   while ((s > 1024)); do
+      s=$((s>>10))
+      (( n++ ))
+   done
+   echo "$s${u:$n:1}"  # human readable size
+}
+
+:<<'DOC' #------ function showbackups ------------------------------------------
+= showbackups
+parameters:	-
+description:	show the current backups
+globals  set:	-
+globals used:	-
+returns:	0
+DOC
+#-------------------------------------------------------------------------------
+showbackups () {
+   verbo showbackups
+   local i s ss b l dt n f=0 p=0 t=0 gt=0
+   pwd -P
+   shopt -s nullglob
+   for i in *.zip; do
+      l=.${i%.zip}			  # zip's listing
+      b=${i##*/} b=${b%.zip}		  # fnnn or pnnn
+      s=$(stat -c '%s' "$i")		  # size in bytes
+      (( gt+=s ))			  # grand total
+      ss=$(human "$s")			  # human readable size
+      dt=$(stat -c '%y' "$i"|sed 's/\..*//') # date and time
+      n=$(wc -l "$l" |cut -d' ' -f1)	  # no of files
+      (( ${b:0:1}++ ))			  # increment $p or $f
+      printf '%4s %10d %12d %4s %s\n' "$b" "$n" "$s" "$ss" "$dt"
+   done
+   echo "$f full $p partial $t hourly backups Grand total $gt ($(human "$gt"))"
+   shopt -u nullglob
+   exit
+}
+
+:<<'DOC' #------ function backupsof --------------------------------------------
+= backupsof
+parameters:	1: filename in current directory
+description:	Find basenames, without extension, of all archives containing
+		the given filename. Store them, with the size and time
+		information, in backupsfound.
+globals  set:	 backupsfound 
+globals used:	-
+returns:	0
+DOC
+#-------------------------------------------------------------------------------
+backupsof () {
+   verbo backupsof
+   backupsfound=()
+   local f="$workdir/$1" i l x
+   f=${f#/}
+   # shellcheck disable=SC2045
+   for i in $(ls -t [fpt][0-9][0-9][0-9].zip); do # ignore shellcheck warnings
+      l=.${i:0:4} # p123.zip -> .p123
+      # gather zipfile basename, file size, file date; example:
+      # p575      592 2020-08-05 13:33
+      x=$(grep "$f$" "$l") && backupsfound+=("${i%.zip} ${x:0:27}")
+   done
+}
+
+:<<'DOC' #------ function extract ----------------------------------------------
+= extract
+parameters:	1: filename = name of the file to extract
+		2:        i = index in |${backupsfound[@]}|
+		3: withdate = true if date must be appended to filename
+description:	extract |$workdir/filename| from the ith element of
+		|$backupsfound| appending the date of the element if
+		withdate is true
+globals  set:	 -
+globals used:	 BackupDir backupsfound workdir
+returns:	 0
+DOC
+#-------------------------------------------------------------------------------
+extract () {
+   local withdate=${3:-false} filename="$1" zipfilename="${workdir#/}/$1"
+   local zip date out tim
+   read -r zip date date tim <<<"${backupsfound[$2]}"
+   date=${date//-/}-${tim//:/}
+   if $withdate; then 
+      out="$filename-$date"
+   else
+      out="$filename"
+   fi
+   verbo "restoring ${zipfilename##*/} as $out from ${zip##*/}"
+   unzip -p "$BackupDir/$zip" "$zipfilename" > "$out"
+   touch -t "${date/-/}" "$out"
+}
+
+:<<'DOC' #------ function restore ----------------------------------------------
+= restore
+parameters:	1: basename of file in current directory
+description:	Restore the given file in the current directory
+globals  set:	 COLUMNS 
+globals used:	 backupsfound REPLY workdir
+returns:	0
+DOC
+#-------------------------------------------------------------------------------
+restore () {
+   verbo restore
+   local r f n date dt out 
+   backupsof "$1"
+   [[ ${#backupsfound[@]} -eq 0 ]] && die "No backups found for $1 in $workdir"
+   echo -e "Looking for $workdir/$1\\n" \
+           "Enter 1-${#backupsfound[@]} to select\\n" \
+           '       q to cancel\n' \
+           '       a to restore all with date appended:'
+   export COLUMNS=60
+   select r in "${backupsfound[@]}"; do 
+      [[ -n $r || $REPLY =~ [qa] ]] && break
+   done
+   cd "$workdir" || die "$workdir disappeared!"
+   case $REPLY in
+(q|'') echo Cancelled;;
+   (a) n=${#backupsfound[@]}
+       for ((i=0;i<n; i++)); do
+          extract "$1" "$i" true
+       done
+       ;;
+   (*) f=${backupsfound[((REPLY-1))]}
+       f=${f%% *}.zip
+       if [[ -e $1 ]]; then 
+          n=0
+          while [[ -e $1.ver$n ]]; do (( n++ )); done
+          mv "$1" "$1.ver$n"
+	  echo "$1 saved as $1.ver$n"
+       fi
+       extract "$1" $((REPLY-1)) false
+       ;;
+   esac
+}
+
+:<<'DOC' #------ function updatelistings ---------------------------------------
+= updatelistings
+parameters:	-
+description:	Update archive listings where necessary
+globals used:	-
+returns:	0
+DOC
+#-------------------------------------------------------------------------------
+updatelistings () {
+   local i lis
+   shopt -s nullglob
+   for i in *.zip; do 
+      lis=.${i%zip}
+      if [[ ! -s "$lis" ]] || [[ "$i" -nt "$lis" ]]; then list "$i" true; fi
+   done
+   shopt -u nullglob
+}
+
+:<<'DOC' #------ function list -------------------------------------------------
+= list
+parameters:	1: name of archive to be listed
+description:	Create a listing, sorted by decreasing size, of the contents of
+		the archive. Set the modification time of the archive and its
+		listing to to the most recent regular file in the archive.
+returns:	0
+DOC
+#-------------------------------------------------------------------------------
+list () {
+   local f=${1%.zip}
+   unzip -lqq "$f"  |sort -rn >".$f" # this truncates the seconds!
+   touch -d "$(
+      grep -av /$ ".$f" | # directories
+      sed 's/^  *//;s/[0-9]\+  //;s/   .*//'| # keep dates only
+      sort -r|head -1 # use most recent
+   ):59" "$f".zip ."$f" || die "Your unzip ($(command -v unzip)) is too old"
+   # ^^ fills in the missing seconds
+}
+
+:<<'DOC' #------ function verbo ------------------------------------------------
+= verbo
+parameters:	*: message
+description:	print the argument(s) to standard error, if |$verbose| is true
+globals  set:	-
+globals used:	 verbose
+returns:	0
+DOC
+#-------------------------------------------------------------------------------
+verbo() {
+   $verbose && echo "$*"
+} 1>&2
+
+:<<'DOC' #------ function verbarr ----------------------------------------------
+= verbarr
+parameters:	1: name of an array variable
+description:	echo the name of the variable plus a colon and the array
+		contents in two columns of width 15 and 50 respectively.
+globals  set:	-
+globals used:	 verbose
+returns:	0
+DOC
+#-------------------------------------------------------------------------------
+verbarr() {
+   $verbose || return
+   printf '\n%15s' "$1:  "
+   eval "echo \"\${$1[@]}\"→"|
+	 fold -bs -w 50|
+	 sed '2,$s/^/               /;1,$s/$/ \\/;s/→ \\//'
+} 1>&2
+
+REd='\e[38;5;9m'
+    die() { local i; for i; do echo -e "$Myname: $REd$i"; done 1>&2; exit 1; }
+helpsrt() { sed -n '/^= Synopsis/,/^= /p' "$0"|sed '1d;$d'; exit; }
+helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed -n '1d;$d;p'|
+            less -Ps"$Myname-${Version/./·} documentation - type h for help, q to quit."
+		exit
+	  }
+
+if ! options=$(getopt \
+   -n "$Myname" \
+   -o hHVIc:fsr:vn:d \
+   -l help,Help,version,conf:,full,show,restore:,verbose,named:,dir,nocolor,web \
+   -- "$@"
+); then exit 1; fi
+eval set -- "$options"
+full=false show=false restore='' conffile='' verbose=false named='' showdir=false
+while [ $# -gt 0 ]; do
+   case $1 in
+   (-h|--help)		# print this help and exit
+	helpsrt
+	;;
+   (-H|--Help)		# print full documentation via less and exit
+	helpall
+	;;
+   (-V|--version)	# print version and exit
+	echo $Version
+        exit
+	;;
+   (-f|--full)		# make a full backup
+	full=true
+	shift 
+	;;
+   (-s|--show)		# Show a listing of the current backups
+	show=true
+	shift
+	;;
+   (-c|--conf)		# use |FILE| as the configuration file
+	[[ $2 = - || -e $2 ]] ||
+	die "The specified configuration file $2 does not exist"
+	conffile="$2"
+	shift 2
+	;;
+   (-r|--restore)	# Restore |FILE| in current directory
+	restore="$2"
+	shift 2
+	;;
+   (-v|--verbose)	# print intermediate messages for debugging
+	verbose=true
+	shift
+	;;
+   (-n|--named)		# make partial backup to named |FILE|
+	named="$2"
+	[[ $named =~ ^[pf][[:digit:]]{3}$ ]] &&
+	die "--named argument may not be pnnn or fnnn"
+	shift 2
+	;;
+   (-d|--dir)		# show the backup directory path and exit
+	showdir=true
+        shift
+        ;;
+   (-I)
+	instscript "$0"
+	exit
+	;;
+   (--)
+	shift
+	break
+	;;
+   (*)
+	break
+	;;
+   esac
+done
+
+configure
+$showdir && echo "$BackupDir" && exit 0
+workdir=$(pwd -P)
+cd "$BackupDir" || die "$BackupDir not found!"
+updatelistings
+[[ -n $restore ]] && { restore "$restore"; exit; }
+$show && showbackups
+setselector
+tmp=$(mktemp -t "$Myname.XXXXXXXXXX")
+trap 'rm -f $tmp' 0 1 2 15
+
+dirskipexp=
+if [[ ${#DirReToSkip[@]} -gt 0 ]]; then
+   dirskipexp='-type d \('
+   for i in "${DirReToSkip[@]}"; do
+      dirskipexp+=" -name '$i' -o "
+   done
+   dirskipexp="${dirskipexp%-o }\\) -prune -o "
+fi
+verbarr  DirReToSkip
+verbo   "  > Note that files skipped by DirReToSkip will never be reported,"
+verbo   "  > because it is used to modify the find call"
+verbarr   dirskipexp
+verbarr     selector
+verbarr DirsToSearch
+verbarr  ExtReToSkip
+verbarr BaseReToSkip
+verbarr FileReToSkip
+verbo
+verbo "Starting file search"
+
+for d in "${DirsToSearch[@]}"; do
+   verbo "Searching $d"
+   verbo "find-expression: find $d $dirskipexp -type f $selector -print0"
+   eval "find $d $dirskipexp -type f $selector -print0" |
+   while read -r -d '' i; do
+      verbo "trying $i"
+      if [[ -d $i ]]; then
+         verbo "  skip: DirReToSkip"
+         continue
+      fi
+      for e in "${ExtReToSkip[@]}"; do 
+         if [[ $i =~ \.$e$ ]]; then
+            verbo "  skip: ExtReToSkip"
+            continue 2
+         fi
+      done
+      for e in "${BaseReToSkip[@]}"; do 
+         if [[ $i =~ /$e$ ]]; then
+            verbo "  skip: BaseReToSkip"
+            continue 2
+         fi
+      done
+      for e in "${FileReToSkip[@]}"; do 
+         if [[ $i =~ $e ]]; then
+            verbo "  skip: FileReToSkip"
+            continue 2
+         fi
+      done
+      if [[ ! -s $i ]]; then
+         verbo "  skip: empty file"
+         continue
+      fi
+      verbo "  back up"
+      echo "${i#/}"
+   done
+done >"$tmp"
+if [ ! -s "$tmp" ]; then 
+   test -t 1 && Mag "Nothing to back up"
+else
+   ( cd /
+     rm -f "$BackupDir/$newbackup"
+     zip -@q "$BackupDir/$newbackup" < "$tmp"
+   )
+   list "$newbackup"
+fi
