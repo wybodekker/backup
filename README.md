@@ -5,7 +5,7 @@
 |    type | bash
 |  author | Wybo Dekker
 |   email | wybo@dekkerdocumenten.nl
-| version | 3.17
+| version | 3.18
 | license | GNU General Public License
 
 Back up files into zip compressed archives, or restore files from those.
