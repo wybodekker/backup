@@ -268,7 +268,6 @@ DOC
 #-------------------------------------------------------------------------------
 latestof () {
    local latest i
-   latest=f001.zip
    for i; do
       [[ $i -nt $latest ]] && latest=$i
    done
@@ -546,59 +545,60 @@ handle_options() {
    eval set -- "$options"
    
    full=false show=false restore='' conffile='' verbose=false named='' showdir=false
-   while [ $# -gt 0 ]; do
+   while true; do
       case $1 in
       (-h|--help)	# print this help and exit
-   			helpsrt
-   			;;
+			helpsrt
+			;;
       (-H|--Help)	# print full documentation via less and exit
-   			helpall
-   			;;
+			helpall
+			;;
       (-V|--version)	# print version and exit
-   			echo $Version
-           		exit
-   			;;
+			echo $Version
+			exit
+			;;
       (-f|--full)	# make a full backup
-   			full=true
-   			shift 
-   			;;
+			full=true
+			shift 
+			;;
       (-s|--show)	# Show a listing of the current backups
-   			show=true
-   			shift
-   			;;
+			show=true
+			shift
+			;;
       (-c|--conf)	# use |FILE| as the configuration file
-   			[[ $2 = - || -e $2 ]] ||
-   			die "The specified configuration file $2 does not exist"
-   			conffile="$2"
-   			shift 2
-   			;;
+			conffile=$(eval realpath "$2")
+			[[ $conffile = - || -e $conffile ]] ||
+			die "The specified configuration file $2 does not exist"
+			shift 2
+			;;
       (-r|--restore)	# Restore |FILE| in current directory
-   			restore="$2"
-   			shift 2
-   			;;
+			[[ $2 =~ / ]] && die "File to restore may not contain /'s"
+			restore="$2"
+			shift 2
+			;;
       (-v|--verbose)	# print intermediate messages for debugging
-   			verbose=true
-   			shift
-   			;;
+			verbose=true
+			shift
+			;;
       (-n|--named)	# make partial backup to named |FILE|
-   			named="$2"
-   			[[ $named =~ ^[pf][[:digit:]]{3}$ ]] &&
-   			die "--named argument may not be pnnn or fnnn"
-   			shift 2
-   			;;
+			named="$2"
+			[[ $named =~ ^[pf][[:digit:]]{3}$ ]] &&
+			die "--named argument may not be pnnn or fnnn"
+			shift 2
+			;;
       (-d|--dir)	# show the backup directory path and exit
-   			showdir=true
-           		shift
-           		;;
+			showdir=true
+			shift
+			;;
       (-I)		instscript "$0" ||
-	   		   die 'the -I option is for developers only'
-        		exit
-   			;;
+			   die 'the -I option is for developers only'
+			exit
+			;;
       (--)		shift
-   			break
-   			;;
+			break
+			;;
       (*)		break
-   			;;
+			;;
       esac
    done
 }
