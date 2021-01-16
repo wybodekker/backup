@@ -524,7 +524,7 @@ excheck() {
    getopt -T 
    [[ $? -ne 4 ]] && die "Your getopt is not GNU"
    i=$(unzip -h|head -1|cut -c7-10)
-   test ${i:0:1} -ge 6 || die "Your unzip is too old (version $i)"
+   (( ${i:0:1} >= 6 )) || die "Your unzip is too old (version $i)"
 }
 
 :<<'DOC' #----------------------------------------------------------------------
@@ -606,10 +606,8 @@ handle_options() {
 REd='\e[38;5;9m' Nor='\e[0m'
     die() { local i; for i; do echo -e "$Myname: $REd$i$Nor"; done 1>&2; exit 1; }
 helpsrt() { sed -n '/^= Synopsis/,/^= /p' "$0"|sed '1d;$d'; exit; }
-helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed -n '1d;$d;p'|
-            less -Ps"$Myname-${Version/./·} documentation - type h for help, q to quit."
-		exit
-	  }
+helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
+            less -P"$Myname-${Version/./·} (press h for help, q to quit)";exit; }
 
 # =============== Program starts here =============
 
