@@ -192,6 +192,9 @@ Note that:
 Released under the [GNU General Public License](www.gnu.org/copyleft/gpl.html)
 DOC
 
+
+
+
 :<<'DOC' #----------------------------------------------------------------------
 = configure
 description:	Sets the defaults, and then applies any changes defined in the 
@@ -202,7 +205,7 @@ globals used:	 BackupDir conffile Myname
 DOC
 #-------------------------------------------------------------------------------
 configure () {
-   verbo configure
+   warn configure
    BackupDir=/backup/$(hostname -s)
    # Required. The directory where backups are stored. For safety reasons
    # you would normally make the backup directory (/backup) a mount point
@@ -235,7 +238,7 @@ configure () {
    # 3. /etc/backup.conf
    # If none is found, keep the defaults
    if [[ $conffile = '-' ]]; then
-      verbo "using default configuration"
+      warn "using default configuration"
    else
       if [[ -z $conffile ]]; then
          for i in $HOME/.backup.conf /etc/backup.conf; do 
@@ -245,7 +248,7 @@ configure () {
       else
          [[ -e $conffile ]] || die "specified config file ($conffile) does not exist"
       fi
-      verbo "Configuration: $conffile"
+      warn "Configuration: $conffile"
       # shellcheck disable=SC1090
       source "$conffile" || die "errors sourcing configuration file ($conffile)"
    fi
@@ -290,7 +293,7 @@ globals used:	 full named
 DOC
 #-------------------------------------------------------------------------------
 setselector () {
-   verbo setselector
+   warn setselector
    local lastfull lastpart n
    lastfull=$(latestof f[0-9][0-9][0-9].zip)
    if [ -z "$named" ]; then
@@ -336,7 +339,7 @@ description:	show the current backups
 DOC
 #-------------------------------------------------------------------------------
 showbackups () {
-   verbo showbackups
+   warn showbackups
    local i s ss b l dt n f=0 p=0 t=0 gt=0
    pwd -P
    shopt -s nullglob
@@ -367,7 +370,7 @@ globals used:	 workdir
 DOC
 #-------------------------------------------------------------------------------
 backupsof () {
-   verbo backupsof
+   warn backupsof
    backupsfound=()
    local f="$workdir/$1" i l x
    f=${f#/}
@@ -399,7 +402,7 @@ extract () {
    else
       out="$filename"
    fi
-   verbo "restoring ${zipfilename##*/} as $out from ${zip##*/}"
+   warn "restoring ${zipfilename##*/} as $out from ${zip##*/}"
    unzip -p "$BackupDir/$zip" "$zipfilename" > "$out"
    touch -t "${date/-/}" "$out"
 }
@@ -413,7 +416,7 @@ globals used:	 backupsfound REPLY workdir
 DOC
 #-------------------------------------------------------------------------------
 restore () {
-   verbo restore
+   warn restore
    local r f n date dt out 
    backupsof "$1"
    [[ ${#backupsfound[@]} -eq 0 ]] && die "No backups found for $1 in $workdir"
@@ -479,17 +482,6 @@ list () {
    ):59" "$f".zip ."$f"
    # ^^ fills in the missing seconds
 }
-
-:<<'DOC' #----------------------------------------------------------------------
-= verbo
-synopsis:	 verbo message [message...]
-description:	print the argument(s) to standard error, if |verbose| is true
-globals used:	 verbose
-DOC
-#-------------------------------------------------------------------------------
-verbo() {
-   $verbose && echo "$*"
-} 1>&2
 
 :<<'DOC' #----------------------------------------------------------------------
 = verbarr
@@ -605,6 +597,8 @@ handle_options() {
 
 REd='\e[38;5;9m' Nor='\e[0m'
     die() { local i; for i; do echo -e "$Myname: $REd$i$Nor"; done 1>&2; exit 1; }
+   Warn() { local i; for i; do echo -e "$Myname:     $i$Nor"; done 1>&2; }
+   warn() { $verbose && Warn "$@"; }
 helpsrt() { sed -n '/^= Synopsis/,/^= /p' "$0"|sed '1d;$d'; exit; }
 helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
             less -P"$Myname-${Version/./·} (press h for help, q to quit)";exit; }
@@ -636,55 +630,55 @@ if [[ ${#DirReToSkip[@]} -gt 0 ]]; then
    dirskipexp="${dirskipexp%-o }\\) -prune -o "
 fi
 verbarr  DirReToSkip
-verbo   "  > Note that files skipped by DirReToSkip will never be reported,"
-verbo   "  > because it is used to modify the find call"
+warn   "  > Note that files skipped by DirReToSkip will never be reported,"
+warn   "  > because it is used to modify the find call"
 verbarr   dirskipexp
 verbarr     selector
 verbarr DirsToSearch
 verbarr  ExtReToSkip
 verbarr BaseReToSkip
 verbarr FileReToSkip
-verbo
-verbo "Starting file search"
+warn
+warn "Starting file search"
 
 for d in "${DirsToSearch[@]}"; do
-   verbo "Searching $d"
-   verbo "find-expression: find $d $dirskipexp -type f $selector -print0"
+   warn "Searching $d"
+   warn "find-expression: find $d $dirskipexp -type f $selector -print0"
    eval "find $d $dirskipexp -type f $selector -print0" |
    while read -r -d '' i; do
-      verbo "trying $i"
+      warn "trying $i"
       if [[ -d $i ]]; then
-         verbo "  skip: DirReToSkip"
+         warn "  skip: DirReToSkip"
          continue
       fi
       for e in "${ExtReToSkip[@]}"; do 
          if [[ $i =~ \.$e$ ]]; then
-            verbo "  skip: ExtReToSkip"
+            warn "  skip: ExtReToSkip"
             continue 2
          fi
       done
       for e in "${BaseReToSkip[@]}"; do 
          if [[ $i =~ /$e$ ]]; then
-            verbo "  skip: BaseReToSkip"
+            warn "  skip: BaseReToSkip"
             continue 2
          fi
       done
       for e in "${FileReToSkip[@]}"; do 
          if [[ $i =~ $e ]]; then
-            verbo "  skip: FileReToSkip"
+            warn "  skip: FileReToSkip"
             continue 2
          fi
       done
       if [[ ! -s $i ]]; then
-         verbo "  skip: empty file"
+         warn "  skip: empty file"
          continue
       fi
-      verbo "  back up"
+      warn "  back up"
       echo "${i#/}"
    done
 done >"$tmp"
 if [ ! -s "$tmp" ]; then 
-   test -t 1 && Mag "Nothing to back up"
+   test -t 1 && Warn "Nothing to back up"
 else
    ( cd /
      rm -f "$BackupDir/$newbackup"
