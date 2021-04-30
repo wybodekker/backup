@@ -40,34 +40,34 @@ they stand for one character, while in the current context
 it is more useful to mean a literal dot.
 
 BackupDir	
-        is the directory where archives are stored; For
-        safety reasons you would normally make the backup
-        directory a mount point for an other disk than the
-        one(s) containing the information to be backed up.
-        
-DirsToSearch    
-        is an array of directories (including any
-        subdirectories) to be searched.
-        
-DirReToSkip     
-        is an array of regexps matching directory names to
-        be skipped; any directory for which the name matches
-        one of these expressions will not be searched for
-        files to backup; neither will any of its
-        subdirectories.
-        
-ExtReToSkip     
-        is an array of regexps matching extensions; files
-        with those extensions are skipped.
-        
-BaseReToSkip    
-        is an array of regexps matching basenames to be
-        skipped; any file for which the basename matches any
-        of these regexps will not be backed up.
-
-FileReToSkip    
-        is an array of regexps matching filenames to be
-        skipped;
+	is the directory where archives are stored; For
+	safety reasons you would normally make the backup
+	directory a mount point for an other disk than the
+	one(s) containing the information to be backed up.
+	
+DirsToSearch	
+	is an array of directories (including any
+	subdirectories) to be searched.
+	
+DirReToSkip	
+	is an array of regexps matching directory names to
+	be skipped; any directory for which the name matches
+	one of these expressions will not be searched for
+	files to backup; neither will any of its
+	subdirectories.
+	
+ExtReToSkip	
+	is an array of regexps matching extensions; files
+	with those extensions are skipped.
+	
+BaseReToSkip	
+	is an array of regexps matching basenames to be
+	skipped; any file for which the basename matches any
+	of these regexps will not be backed up.
+	
+FileReToSkip	
+	is an array of regexps matching filenames to be
+	skipped;
 
 Here is an overview of the default settings for these variables:
 
@@ -139,49 +139,49 @@ Note that:
 -V,--version	
 	prints version and then exits
 -f,--full	
-        Generates a full backup. Without this option, a
-        partial (incremental) backup is made, relative to
-        the most recent backup in the backup directory, that
-        is: in |/backup/$(hostname -s)| if you did not read
-        a configuration file.
-        Full backups will obtain filenames |f001.zip|,
-        |f002.zip|, and so on. Similarly, partial backups
-        are named |p001.zip|, |p002.zip|, and so on.
+	Generates a full backup. Without this option, a
+	partial (incremental) backup is made, relative to
+	the most recent backup in the backup directory, that
+	is: in |/backup/$(hostname -s)| if you did not read
+	a configuration file.
+	Full backups will obtain filenames |f001.zip|,
+	|f002.zip|, and so on. Similarly, partial backups
+	are named |p001.zip|, |p002.zip|, and so on.
 -c,--conf=FILE	
-        Use the given FILE as configuration file; Without
-        this option, backup looks for |~/.backup.conf| or,
-        if that file does not exist, for
-        |/etc/backup.conf|. If none of these is found,
-        backup fails with an error message. See the section
-        "Configuration files" above.
+	Use the given FILE as configuration file; Without
+	this option, backup looks for |~/.backup.conf| or,
+	if that file does not exist, for
+	|/etc/backup.conf|. If none of these is found,
+	backup fails with an error message. See the section
+	"Configuration files" above.
 -r,--restore	
-        Don't back up, but restore from old backups
-        instead. Start backup with this option in the
-        directory where the file to be restored existed
-        when it was backed up. You will see a numbered
-        listing of existing backups, from which you can
-        select one by typing its number.
-        If a file of that name already exists, it will be
-        renamed by adding a |.ver0| extension or, if that
-        exists, |.ver1| or |.ver2| et cetera.
-        You can select all backups by typing |a|; this
-        results in restoring all files with a datetime
-        string attached to the name. Or you can type |q| to
-        cancel your restore request.
+	Don't back up, but restore from old backups
+	instead. Start backup with this option in the
+	directory where the file to be restored existed
+	when it was backed up. You will see a numbered
+	listing of existing backups, from which you can
+	select one by typing its number.
+	If a file of that name already exists, it will be
+	renamed by adding a |.ver0| extension or, if that
+	exists, |.ver1| or |.ver2| et cetera.
+	You can select all backups by typing |a|; this
+	results in restoring all files with a datetime
+	string attached to the name. Or you can type |q| to
+	cancel your restore request.
 -n,--named=NAME	
-        Name for the new backup file (instead of pxxx or
-        fxxx). One application is to use this for an hourly
-        backup by adding this entry to your crontab:
+	Name for the new backup file (instead of pxxx or
+	fxxx). One application is to use this for an hourly
+	backup by adding this entry to your crontab:
 	   1 * * * * backup --named=t0$(date +%H)
-        If the name has the format |txxx|, like in the above
-        example, the backup will be relative to the most
-        recent of all files |[fpt][0-9][0-9][0-9].zip|;
+	If the name has the format |txxx|, like in the above
+	example, the backup will be relative to the most
+	recent of all files |[fpt][0-9][0-9][0-9].zip|;
 	otherwise it will be relative to the most recent of
 	|p[0-9][0-9][0-9].zip|.
 -s,--show	
-        Shows a listing of current backups with the number
-        of files, size of the backup in characters and in
-        human readable form, date, and time.
+	Shows a listing of current backups with the number
+	of files, size of the backup in characters and in
+	human readable form, date, and time.
 -v,--verbose	
 	print debugging messages while running.
 
@@ -191,9 +191,6 @@ Note that:
 = Copyright
 Released under the [GNU General Public License](www.gnu.org/copyleft/gpl.html)
 DOC
-
-
-
 
 :<<'DOC' #----------------------------------------------------------------------
 = configure
@@ -261,7 +258,6 @@ configure () {
    for i in "${!BaseReToSkip[@]}"; do BaseReToSkip[$i]="${BaseReToSkip[$i]//./\\.}"; done
    for i in "${!FileReToSkip[@]}"; do FileReToSkip[$i]="${FileReToSkip[$i]//./\\.}"; done
 }
-
 
 :<<'DOC' #----------------------------------------------------------------------
 = latestof
