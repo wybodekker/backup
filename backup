@@ -1,6 +1,6 @@
 #!/bin/bash
 
-Version=3.18
+Version=3.19
 Myname="${0##*/}"
 
 :<<'DOC'
@@ -15,7 +15,8 @@ backup [options]
 -V,--version		print version and exit
 -f,--full		make a full backup
 -s,--show		Show a listing of the current backups
--c,--conf=FILE		use |FILE| as the configuration file
+-c,--conf=FILE		use optional |FILE| as the configuration file;
+			with no argument: report conf file used and exit
 -r,--restore=FILE	Restore |FILE| in current directory
 -v,--verbose		print intermediate messages for debugging
 -n,--named=FILE		make partial backup to named |FILE|
@@ -148,12 +149,14 @@ Note that:
 	|f002.zip|, and so on. Similarly, partial backups
 	are named |p001.zip|, |p002.zip|, and so on.
 -c,--conf=FILE	
-	Use the given FILE as configuration file; Without
+	Use the given FILE as configuration file; without
 	this option, backup looks for |~/.backup.conf| or,
 	if that file does not exist, for
 	|/etc/backup.conf|. If none of these is found,
 	backup fails with an error message. See the section
 	"Configuration files" above.
+	The argument is optional; without it, backup reports
+	the configuration file used, and exits.
 -r,--restore	
 	Don't back up, but restore from old backups
 	instead. Start backup with this option in the
@@ -202,6 +205,7 @@ globals used:	 BackupDir conffile Myname
 DOC
 #-------------------------------------------------------------------------------
 configure () {
+   local i
    warn configure
    BackupDir=/backup/$(hostname -s)
    # Required. The directory where backups are stored. For safety reasons
@@ -253,10 +257,18 @@ configure () {
    [[ -d $BackupDir ]] || die "Directory $BackupDir does not exist"
    [[ -w $BackupDir ]] || die "$BackupDir is not writable (for you)"
    # escape . in regexps:
-   for i in "${!DirReToSkip[@]}";  do  DirReToSkip[$i]="${DirReToSkip[$i]//./\\.}"; done
-   for i in "${!ExtReToSkip[@]}";  do  ExtReToSkip[$i]="${ExtReToSkip[$i]//./\\.}"; done
-   for i in "${!BaseReToSkip[@]}"; do BaseReToSkip[$i]="${BaseReToSkip[$i]//./\\.}"; done
-   for i in "${!FileReToSkip[@]}"; do FileReToSkip[$i]="${FileReToSkip[$i]//./\\.}"; done
+   for i in "${!DirReToSkip[@]}"; do
+      DirReToSkip[$i]="${DirReToSkip[$i]//./\\.}"
+   done
+   for i in "${!ExtReToSkip[@]}";
+      do ExtReToSkip[$i]="${ExtReToSkip[$i]//./\\.}"
+   done
+   for i in "${!BaseReToSkip[@]}";
+      do BaseReToSkip[$i]="${BaseReToSkip[$i]//./\\.}"
+   done
+   for i in "${!FileReToSkip[@]}";
+      do FileReToSkip[$i]="${FileReToSkip[$i]//./\\.}"
+   done
 }
 
 :<<'DOC' #----------------------------------------------------------------------
@@ -526,13 +538,14 @@ handle_options() {
    local options
    if ! options=$(getopt \
       -n "$Myname" \
-      -o hHVIc:fsr:vn:d \
-      -l help,Help,version,conf:,full,show,restore:,verbose,named:,dir,nocolor,web \
+      -o hHVIc::fsr:vn:d \
+      -l help,Help,version,conf::,full,show,restore:,verbose,named:,dir,nocolor,web \
       -- "$@"
    ); then exit 1; fi
    eval set -- "$options"
    
    full=false show=false restore='' conffile='' verbose=false named='' showdir=false
+   repconf=false
    while true; do
       case $1 in
       (-h|--help)	# print this help and exit
@@ -554,10 +567,18 @@ handle_options() {
 			shift
 			;;
       (-c|--conf)	# use |FILE| as the configuration file
-			conffile=$(eval realpath "$2")
-			[[ $conffile = - || -e $conffile ]] ||
-			die "The specified configuration file $2 does not exist"
-			shift 2
+			case $2 in
+			  (-)	echo use defaults
+				shift 2
+				;;
+			  ('')	repconf=true # just report conffile
+				shift
+				;;
+			  (*)	conffile=$(eval realpath "$2")
+				[[ -e $conffile ]] ||
+				die "Specified conf file $2 does not exist"
+				shift 2
+			esac
 			;;
       (-r|--restore)	# Restore |FILE| in current directory
 			[[ $2 =~ / ]] && die "File to restore may not contain /'s"
@@ -605,8 +626,8 @@ helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
 excheck getopt fold grep less sed tr unzip zip
 
 handle_options "$@"
-
 configure
+$repconf && echo "$conffile" && exit 0
 $showdir && echo "$BackupDir" && exit 0
 workdir=$(pwd -P)
 cd "$BackupDir" || die "$BackupDir not found!"
