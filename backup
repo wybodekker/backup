@@ -206,7 +206,6 @@ DOC
 #-------------------------------------------------------------------------------
 configure () {
    local i
-   warn configure
    BackupDir=/backup/$(hostname -s)
    # Required. The directory where backups are stored. For safety reasons
    # you would normally make the backup directory (/backup) a mount point
@@ -249,7 +248,6 @@ configure () {
       else
          [[ -e $conffile ]] || die "specified config file ($conffile) does not exist"
       fi
-      warn "Configuration: $conffile"
       # shellcheck disable=SC1090
       source "$conffile" || die "errors sourcing configuration file ($conffile)"
    fi
@@ -402,7 +400,8 @@ DOC
 #-------------------------------------------------------------------------------
 extract () {
    local withdate=${3:-false} filename="$1" zipfilename="${workdir#/}/$1"
-   local zip date out tim
+   local zip date out tim u=$SUDO_USER g
+   g=$(groups "$u") g=${g%% *}
    read -r zip date date tim <<<"${backupsfound[$2]}"
    date=${date//-/}-${tim//:/}
    if $withdate; then 
@@ -413,6 +412,7 @@ extract () {
    warn "restoring ${zipfilename##*/} as $out from ${zip##*/}"
    unzip -p "$BackupDir/$zip" "$zipfilename" > "$out"
    touch -t "${date/-/}" "$out"
+   chown "$u.$g" "$out"
 }
 
 :<<'DOC' #----------------------------------------------------------------------
@@ -449,7 +449,7 @@ restore () {
        if [[ -e $1 ]]; then 
           n=0
           while [[ -e $1.ver$n ]]; do (( n++ )); done
-          mv "$1" "$1.ver$n"
+          mv "$1" "$1.ver$n" || die "Could not write $1.ver$n"
 	  echo "$1 saved as $1.ver$n"
        fi
        extract "$1" $((REPLY-1)) false
@@ -466,7 +466,7 @@ updatelistings () {
    local i lis
    shopt -s nullglob
    for i in *.zip; do 
-      lis=.${i%zip}
+      lis=.${i%.zip}
       if [[ ! -s "$lis" ]] || [[ "$i" -nt "$lis" ]]; then list "$i" true; fi
    done
    shopt -u nullglob
@@ -531,7 +531,7 @@ excheck() {
 = handle_options
 synopsis:	 handle_options "$@"
 description:	Handle the options
-globals used:	 Myname Version full show restore conffile verbose named showdir
+globals used:	 Myname Version full show restore conffile verbose named
 DOC
 #-------------------------------------------------------------------------------
 handle_options() {
@@ -544,7 +544,7 @@ handle_options() {
    ); then exit 1; fi
    eval set -- "$options"
    
-   full=false show=false restore='' conffile='' verbose=false named='' showdir=false
+   full=false show=false restore='' conffile='' verbose=false named=''
    repconf=false
    while true; do
       case $1 in
@@ -558,6 +558,15 @@ handle_options() {
 			echo $Version
 			exit
 			;;
+      (-v|--verbose)	# print intermediate messages for debugging
+			verbose=true
+			shift
+			;;
+      (-d|--dir)	# show the backup directory path and exit
+			echo "$BackupDir"
+			exit
+			;;
+      # From here you must be root:
       (-f|--full)	# make a full backup
 			full=true
 			shift 
@@ -585,19 +594,11 @@ handle_options() {
 			restore="$2"
 			shift 2
 			;;
-      (-v|--verbose)	# print intermediate messages for debugging
-			verbose=true
-			shift
-			;;
       (-n|--named)	# make partial backup to named |FILE|
 			named="$2"
 			[[ $named =~ ^[pf][[:digit:]]{3}$ ]] &&
 			die "--named argument may not be pnnn or fnnn"
 			shift 2
-			;;
-      (-d|--dir)	# show the backup directory path and exit
-			showdir=true
-			shift
 			;;
       (-I)		instscript "$0" ||
 			   die 'the -I option is for developers only'
@@ -612,9 +613,9 @@ handle_options() {
    done
 }
 
-REd='\e[38;5;9m' Nor='\e[0m'
+REd='\e[38;5;1m' Mag='\e[38;5;5m' Nor='\e[0m'
     die() { local i; for i; do echo -e "$Myname: $REd$i$Nor"; done 1>&2; exit 1; }
-   Warn() { local i; for i; do echo -e "$Myname:     $i$Nor"; done 1>&2; }
+   Warn() { local i; for i; do echo -e "$Myname: $Mag$i$Nor"; done 1>&2; }
    warn() { $verbose && Warn "$@"; }
 helpsrt() { sed -n '/^= Synopsis/,/^= /p' "$0"|sed '1d;$d'; exit; }
 helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
@@ -625,15 +626,18 @@ helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
 # Are all executables there?
 excheck getopt fold grep less sed tr unzip zip
 
-handle_options "$@"
 configure
+handle_options "$@"
+warn "Configuration: $conffile"
+test $UID -eq 0 || die 'You must be root to run backup'
 $repconf && echo "$conffile" && exit 0
-$showdir && echo "$BackupDir" && exit 0
 workdir=$(pwd -P)
 cd "$BackupDir" || die "$BackupDir not found!"
 updatelistings
 [[ -n $restore ]] && { restore "$restore"; exit; }
 $show && showbackups
+
+umask u=rwx,g=,o=
 setselector
 tmp=$(mktemp -t "$Myname.XXXXXXXXXX")
 trap 'rm -f $tmp' 0 1 2 15
