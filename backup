@@ -1,6 +1,6 @@
 #!/bin/bash
 
-Version=3.19
+Version=3.20
 Myname="${0##*/}"
 
 :<<'DOC'
