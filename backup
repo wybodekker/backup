@@ -10,65 +10,62 @@ Myname="${0##*/}"
 backup [options]	
 
 == Options
--h,--help		print this help and exit
--H,--Help		print full documentation via less and exit
--V,--version		print version and exit
--f,--full		make a full backup
--s,--show		Show a listing of the current backups
--c,--conf=FILE		use optional |FILE| as the configuration file;
-			with no argument: report conf file used and exit
--r,--restore=FILE	Restore |FILE| in current directory
--v,--verbose		print intermediate messages for debugging
--n,--named=FILE		make partial backup to named |FILE|
--d,--dir		show the backup directory path and exit
+-h|--help	print this help and exit
+-H|--Help	print full documentation via less and exit
+-V|--version	print version and exit
+-v|--verbose	print intermediate messages for debugging
+-d|--dir	show the backup directory path and exit
+
+== From here you must be root:
+
+-f|--full	make a full backup
+-s|--show	Show a listing of the current backups
+-c|--conf	use file |ARG| as the configuration file
+-r|--restore	Restore file |ARG| in current directory
+-n|--named	make partial backup to named file |ARG|
 
 = Description
 Back up files into zip compressed archives, or restore files from those.
-Both full and partial backups are possible. 
+Both full and partial backups are possible.
 
 = Configuration
-The selection of files to be backed up is governed by 6
-variables. The first two (|BackupDir| and |DirsToSearch|)
-tell where backups are stored and where files to be backed
-up are searched, respectively. The remaining variables are
-arrays of Bash regular expressions that act on the full
+The selection of files to be backed up is governed by 6 variables. The
+first two (|BackupDir| and |DirsToSearch|) tell where backups are stored
+and where files to be backed up are searched, respectively. The remaining
+variables are arrays of Bash regular expressions that act on the full
 pathnames of the file that are backup candidates.
 
-Important note: the Bash regular expressions (*ReToSkip
-below) will be automatically adapted by escaping any dots
-(.) in them: dots occur frequently and in unescaped form
-they stand for one character, while in the current context
-it is more useful to mean a literal dot.
+Important note: the Bash regular expressions (*ReToSkip below) will be
+automatically adapted by escaping any dots (.) in them: dots occur
+frequently and in unescaped form they stand for one character, while in the
+current context it is more useful to mean a literal dot.
 
 BackupDir	
-	is the directory where archives are stored; For
-	safety reasons you would normally make the backup
-	directory a mount point for an other disk than the
-	one(s) containing the information to be backed up.
+        is the directory where archives are stored; For safety reasons you
+        would normally make the backup directory a mount point for an other
+        disk than the one(s) containing the information to be backed up.
 	
 DirsToSearch	
-	is an array of directories (including any
-	subdirectories) to be searched.
+        is an array of directories (including any subdirectories) to
+        be searched.
 	
 DirReToSkip	
-	is an array of regexps matching directory names to
-	be skipped; any directory for which the name matches
-	one of these expressions will not be searched for
-	files to backup; neither will any of its
-	subdirectories.
+        is an array of regexps matching directory names to be skipped; any
+        directory for which the name matches one of these expressions will
+        not be searched for files to backup; neither will any of its
+        subdirectories.
 	
 ExtReToSkip	
-	is an array of regexps matching extensions; files
-	with those extensions are skipped.
+        is an array of regexps matching extensions; files with those
+        extensions are skipped.
 	
 BaseReToSkip	
-	is an array of regexps matching basenames to be
-	skipped; any file for which the basename matches any
-	of these regexps will not be backed up.
+        is an array of regexps matching basenames to be skipped; any file
+        for which the basename matches any of these regexps will not be
+        backed up.
 	
 FileReToSkip	
-	is an array of regexps matching filenames to be
-	skipped;
+        is an array of regexps matching filenames to be skipped;
 
 Here is an overview of the default settings for these variables:
 
@@ -79,9 +76,9 @@ Here is an overview of the default settings for these variables:
  BaseReToSkip=(t)
  FileReToSkip=(~$ '#$')
 
-In principle, only the last variable (|FileReToSkip|) is
-sufficient for file selection. For example, the above values
-can be replaced with the following, equivalent, combination:
+In principle, only the last variable (|FileReToSkip|) is sufficient for
+file selection. For example, the above values can be replaced with the
+following, equivalent, combination:
 
     BackupDir=/backup/$(hostname -s)
  DirsToSearch=(/home /etc)
@@ -96,10 +93,9 @@ can be replaced with the following, equivalent, combination:
  )
 
 = Configuration files
-The default values for the variables described in the
-previous section can be changed by means of configuration
-files. backup looks for three configuration files, and uses
-the first it encounters:
+The default values for the variables described in the previous section can
+be changed by means of configuration files. backup looks for three
+configuration files, and uses the first it encounters:
 
 1. a file specified with the |--conf| option; if |--conf=-|
    or |-c-| was specified, no configuration file will be
@@ -108,28 +104,24 @@ the first it encounters:
 3. |/etc/backup.conf|, if it exists
 
 Note that:
-- A configuration file containing the default settings shown
-  above would have no effect.
+- A configuration file containing the default settings shown above would
+  have no effect.
 
-- If you put alternative values for only one or a few
-  variable in your configuration file, the other variables
-  keep their default values.
+- If you put alternative values for only one or a few variable in your
+  configuration file, the other variables keep their default values.
 
-- If you use the |--verbose| option, files skipped because
-  of the values in these variables will be reported,
-  together with the values of the variable. Wild cards in
-  those values will then be shown in their expanded form,
-  which may be confusing. So it might be wise to put values
-  with wild cards between quotes. This is why, for example,
-  the '[Cc]ache' has been quoted in the defulat settings.
+- If you use the |--verbose| option, files skipped because of the values in
+  these variables will be reported, together with the values of the
+  variable. Wild cards in those values will then be shown in their expanded
+  form, which may be confusing. So it might be wise to put values with wild
+  cards between quotes. This is why, for example, the '[Cc]ache' has been
+  quoted in the defulat settings.
 
-- Values containing parenthesis or |#| characters need
-  quotation anyway.
+- Values containing parenthesis or |#| characters need quotation anyway.
 
-- There is always more than one way to exclude files from
-  backups; for example, you can exclude files with the
-  |.log| extension by specifying |ExtReToSkip=(log)| or with
-  |BaseReToSkip=('*.log')| or with
+- There is always more than one way to exclude files from backups; for
+  example, you can exclude files with the |.log| extension by specifying
+  |ExtReToSkip=(log)| or with |BaseReToSkip=('*.log')| or with
   |FileReToSkip=('\.log$')|.
 
 = Options
@@ -140,51 +132,47 @@ Note that:
 -V,--version	
 	prints version and then exits
 -f,--full	
-	Generates a full backup. Without this option, a
-	partial (incremental) backup is made, relative to
-	the most recent backup in the backup directory, that
-	is: in |/backup/$(hostname -s)| if you did not read
-	a configuration file.
-	Full backups will obtain filenames |f001.zip|,
-	|f002.zip|, and so on. Similarly, partial backups
-	are named |p001.zip|, |p002.zip|, and so on.
--c,--conf=FILE	
-	Use the given FILE as configuration file; without
-	this option, backup looks for |~/.backup.conf| or,
-	if that file does not exist, for
-	|/etc/backup.conf|. If none of these is found,
-	backup fails with an error message. See the section
-	"Configuration files" above.
-	The argument is optional; without it, backup reports
-	the configuration file used, and exits.
+        Generates a full backup. Without this option, a partial
+        (incremental) backup is made, relative to the most recent backup in
+        the backup directory, that is: in |/backup/$(hostname -s)| if you
+        did not read a configuration file. Full backups will obtain
+        filenames |f001.zip|, |f002.zip|, and so on. Similarly, partial
+        backups are named |p001.zip|, |p002.zip|, and so on.
+-c,--conf[=ARG]	
+        Use the given |ARG| as configuration file; without this option,
+        backup looks for |~/.backup.conf| or, if that file does not exist,
+        for |/etc/backup.conf|. If none of these is found, backup fails
+        with an error message. See the section "Configuration files" above.
+        The argument is optional; without it, backup reports the
+        configuration file used, and exits.
 -r,--restore	
-	Don't back up, but restore from old backups
-	instead. Start backup with this option in the
-	directory where the file to be restored existed
-	when it was backed up. You will see a numbered
-	listing of existing backups, from which you can
-	select one by typing its number.
-	If a file of that name already exists, it will be
-	renamed by adding a |.ver0| extension or, if that
-	exists, |.ver1| or |.ver2| et cetera.
-	You can select all backups by typing |a|; this
-	results in restoring all files with a datetime
-	string attached to the name. Or you can type |q| to
-	cancel your restore request.
+        Don't back up, but restore from old backups instead. Start
+        backup with this option in the directory where the file to be
+        restored existed when it was backed up. You will see a numbered
+        listing of existing backups, from which you can select one by
+        typing its number.
+        If a file of that name already exists, it will be renamed by
+        adding a |.ver0| extension or, if that exists, |.ver1| or |.ver2|
+        et cetera.
+        You can select all backups by typing |a|; this results in restoring
+        all files with a datetime string attached to the name. Or you can
+        type |q| to cancel your restore request.
+
 -n,--named=NAME	
-	Name for the new backup file (instead of pxxx or
-	fxxx). One application is to use this for an hourly
-	backup by adding this entry to your crontab:
+        Name for the new backup file (instead of pxxx or fxxx). One
+        application is to use this for an hourly backup by adding this
+        entry to your crontab:
+
 	   1 * * * * backup --named=t0$(date +%H)
-	If the name has the format |txxx|, like in the above
-	example, the backup will be relative to the most
-	recent of all files |[fpt][0-9][0-9][0-9].zip|;
-	otherwise it will be relative to the most recent of
-	|p[0-9][0-9][0-9].zip|.
+
+        If the name has the format |txxx|, like in the above example,
+        the backup will be relative to the most recent of all files
+	|[fpt][0-9][0-9][0-9].zip|; otherwise it will be relative to
+	the most recent of |p[0-9][0-9][0-9].zip|.
 -s,--show	
-	Shows a listing of current backups with the number
-	of files, size of the backup in characters and in
-	human readable form, date, and time.
+        Shows a listing of current backups with the number of files,
+        size of the backup in characters and in human readable form,
+        date, and time.
 -v,--verbose	
 	print debugging messages while running.
 
@@ -535,82 +523,82 @@ globals used:	 Myname Version full show restore conffile verbose named
 DOC
 #-------------------------------------------------------------------------------
 handle_options() {
-   local options
-   if ! options=$(getopt \
-      -n "$Myname" \
-      -o hHVIc::fsr:vn:d \
-      -l help,Help,version,conf::,full,show,restore:,verbose,named:,dir,nocolor,web \
-      -- "$@"
-   ); then exit 1; fi
-   eval set -- "$options"
-   
-   full=false show=false restore='' conffile='' verbose=false named=''
-   repconf=false
-   while true; do
-      case $1 in
-      (-h|--help)	# print this help and exit
-			helpsrt
-			;;
-      (-H|--Help)	# print full documentation via less and exit
-			helpall
-			;;
-      (-V|--version)	# print version and exit
-			echo $Version
-			exit
-			;;
-      (-v|--verbose)	# print intermediate messages for debugging
-			verbose=true
-			shift
-			;;
-      (-d|--dir)	# show the backup directory path and exit
-			echo "$BackupDir"
-			exit
-			;;
-      # From here you must be root:
-      (-f|--full)	# make a full backup
-			full=true
-			shift 
-			;;
-      (-s|--show)	# Show a listing of the current backups
-			show=true
-			shift
-			;;
-      (-c|--conf)	# use |FILE| as the configuration file
-			case $2 in
-			  (-)	echo use defaults
-				shift 2
-				;;
-			  ('')	repconf=true # just report conffile
-				shift
-				;;
-			  (*)	conffile=$(eval realpath "$2")
-				[[ -e $conffile ]] ||
-				die "Specified conf file $2 does not exist"
-				shift 2
-			esac
-			;;
-      (-r|--restore)	# Restore |FILE| in current directory
-			[[ $2 =~ / ]] && die "File to restore may not contain /'s"
-			restore="$2"
+  local options
+  if ! options=$(getopt \
+    -n "$Myname" \
+    -o hHVIc::fsr:vn:d \
+    -l help,Help,version,conf::,full,show,restore:,verbose,named:,dir,nocolor,web \
+    -- "$@"
+  ); then exit 1; fi
+  eval set -- "$options"
+  
+  full=false show=false restore='' verbose=false named=''
+  while true; do
+    case $1 in
+    (-h|--help)	   # print this help and exit
+		   helpsrt
+		   ;;
+    (-H|--Help)	   # print full documentation via less and exit
+		   helpall
+		   ;;
+    (-V|--version) # print version and exit
+		   echo $Version
+		   exit
+		   ;;
+    (-v|--verbose) # print intermediate messages for debugging
+		   verbose=true
+		   shift
+		   ;;
+    (-d|--dir)	   # show the backup directory path and exit
+		   echo "$BackupDir"
+		   exit
+		   ;;
+    (-c|--conf)	   # use optional |ARG| as the configuration file
+		   # with no argument: report conf file used and exit
+		   case $2 in
+		   (-)	echo use defaults
 			shift 2
 			;;
-      (-n|--named)	# make partial backup to named |FILE|
-			named="$2"
-			[[ $named =~ ^[pf][[:digit:]]{3}$ ]] &&
-			die "--named argument may not be pnnn or fnnn"
-			shift 2
-			;;
-      (-I)		instscript "$0" ||
-			   die 'the -I option is for developers only'
+		   ('') echo "$conffile"
 			exit
 			;;
-      (--)		shift
-			break
-			;;
-      (*)		break
-			;;
-      esac
-   done
+		   (*)	conffile=$(eval realpath "$2")
+			[[ -e $conffile ]] ||
+			die "Specified conf file $2 does not exist"
+			shift 2
+		   esac
+		   ;;
+    # From here you must be root:
+    (-f|--full)	   # make a full backup
+		   full=true
+		   shift 
+		   ;;
+    (-s|--show)	   # Show a listing of the current backups
+		   show=true
+		   shift
+		   ;;
+    (-r|--restore) # Restore |ARG| in current directory
+		   [[ $2 =~ / ]] && die "File to restore may not contain /'s"
+		   restore="$2"
+		   shift 2
+		   ;;
+    (-n|--named)   # make partial backup to named |ARG|
+		   named="$2"
+		   [[ $named =~ ^[pf][[:digit:]]{3}$ ]] &&
+		   die "--named argument may not be pnnn or fnnn"
+		   shift 2
+		   ;;
+    (-I)	   instscript "$0" ||
+		      die 'the -I option is for developers only'
+		   exit
+		   ;;
+    (--)	   shift
+		   break
+		   ;;
+    (*)		   break
+		   ;;
+    esac
+  done
 }
 
 REd='\e[38;5;1m' Mag='\e[38;5;5m' Nor='\e[0m'
@@ -630,7 +618,6 @@ configure
 handle_options "$@"
 warn "Configuration: $conffile"
 test $UID -eq 0 || die 'You must be root to run backup'
-$repconf && echo "$conffile" && exit 0
 workdir=$(pwd -P)
 cd "$BackupDir" || die "$BackupDir not found!"
 updatelistings
