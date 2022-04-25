@@ -15,14 +15,15 @@ backup [options]
 -V|--version	print version and exit
 -v|--verbose	print intermediate messages for debugging
 -d|--dir	show the backup directory path and exit
+-c|--conf=X	use X as configuration file; if X is -, don’t read any
+		configuration file and use defaults
 
 == From here you must be root:
 
 -f|--full	make a full backup
 -s|--show	Show a listing of the current backups
--c|--conf	use file |ARG| as the configuration file
--r|--restore	Restore file |ARG| in current directory
--n|--named	make partial backup to named file |ARG|
+-r|--restore=X	Restore file X in current directory
+-n|--named=X	make partial backup to X.zip
 
 = Description
 Back up files into zip compressed archives, or restore files from those.
@@ -76,21 +77,8 @@ Here is an overview of the default settings for these variables:
  BaseReToSkip=(t)
  FileReToSkip=(~$ '#$')
 
-In principle, only the last variable (|FileReToSkip|) is sufficient for
-file selection. For example, the above values can be replaced with the
-following, equivalent, combination:
-
-    BackupDir=/backup/$(hostname -s)
- DirsToSearch=(/home /etc)
-  DirReToSkip=()
-  ExtReToSkip=()
- BaseReToSkip=()
- FileReToSkip=(
-   '~$ #$'
-   '/t$'
-   '\.(auk|aux|bak|bku|dep|err|lo[fgt]|msf|old|swp|tmp|toc|tok)$'
-   '/(t|temp|tmp|[Cc]ache|.thumbnails)/'
- )
+Note that these defaults imply that the backups are produced in a directory
+on the root file system, which is unsafe, and results in a warning.
 
 = Configuration files
 The default values for the variables described in the previous section can
@@ -99,7 +87,7 @@ configuration files, and uses the first it encounters:
 
 1. a file specified with the |--conf| option; if |--conf=-|
    or |-c-| was specified, no configuration file will be
-   read at all.
+   read at all and the above defaults will be used.
 2. |~/.backup.conf|, if it exists
 3. |/etc/backup.conf|, if it exists
 
@@ -115,7 +103,7 @@ Note that:
   variable. Wild cards in those values will then be shown in their expanded
   form, which may be confusing. So it might be wise to put values with wild
   cards between quotes. This is why, for example, the '[Cc]ache' has been
-  quoted in the defulat settings.
+  quoted in the default settings.
 
 - Values containing parenthesis or |#| characters need quotation anyway.
 
@@ -138,19 +126,19 @@ Note that:
 	did not read a configuration file. Full backups will obtain
 	filenames |f001.zip|, |f002.zip|, and so on. Similarly, partial
 	backups are named |p001.zip|, |p002.zip|, and so on.
--c,--conf[=ARG]	
-	Use the given |ARG| as configuration file; without this option,
+-c,--conf=X	
+	Use the given X as configuration file; without this option,
 	backup looks for |~/.backup.conf| or, if that file does not exist,
 	for |/etc/backup.conf|. If none of these is found, backup fails
 	with an error message. See the section "Configuration files" above.
 	The argument is optional; without it, backup reports the
 	configuration file used, and exits.
--r,--restore	
-	Don't back up, but restore from old backups instead. Start
-	backup with this option in the directory where the file to be
-	restored existed when it was backed up. You will see a numbered
-	listing of existing backups, from which you can select one by
-	typing its number.
+-r,--restore=X	
+        Don’t back up, but restore X in current directory from old
+        backups instead. Start backup with this option in the directory
+        where the file to be restored existed when it was backed up. You
+        will see a numbered listing of existing backups, from which you can
+        select one by typing its number.
 	If a file of that name already exists, it will be renamed by
 	adding a |.ver0| extension or, if that exists, |.ver1| or |.ver2|
 	et cetera.
@@ -158,8 +146,8 @@ Note that:
 	all files with a datetime string attached to the name. Or you can
 	type |q| to cancel your restore request.
 	
--n,--named=NAME	
-	Name for the new backup file (instead of pxxx or fxxx). One
+-n,--named=X
+	Set the name of the new backup file to X (instead of pxxx or fxxx). One
 	application is to use this for an hourly backup by adding this
 	entry to your crontab:
 	
@@ -192,41 +180,16 @@ globals  set:	 BackupDir DirsToSearch DirReToSkip ExtReToSkip
 globals used:	 BackupDir conffile Myname
 DOC
 #-------------------------------------------------------------------------------
-configure () {
+configure() {
    local i
-   BackupDir=/backup/$(hostname -s)
-   # Required. The directory where backups are stored. For safety reasons
-   # you would normally make the backup directory (/backup) a mount point
-   # for an other disk than the one(s) containing the information to be
-   # backed up.
-   
-   
-   DirsToSearch=(/home /etc)
-   # Required. The directories which will be backed up.
-   
-   DirReToSkip=(t temp tmp [Cc]ache .thumbnails)
-   # Directory names that will be pruned. No files in these directories and
-   # their subdirectories will be backed up. You can only give base names
-   # here, not paths. Note that these directories can occur anywhere, not
-   # only in home directories.
-
-   ExtReToSkip=(auk aux bak bku dep err lo[fgt] msf old swp tmp toc tok)
-   # Files who's extensions match these will be skipped.
-   
-   BaseReToSkip=(t)
-
-   FileReToSkip=(~$ '#$')
-   # File regular expressions to skip: No files with names matcing any of
-   # these expressions will be backed up.
-
    # Read first available config file in the following list, unless reading
    # configuration files is disabled with --conf=-:
    # 1. a file specified with the --config option
    # 2. ~/.backup.conf
    # 3. /etc/backup.conf
    # If none is found, keep the defaults
-   if [[ $conffile = '-' ]]; then
-      warn "using default configuration"
+   if [[ $conffile == '-' ]]; then
+      Warn "using default configuration"
    else
       if [[ -z $conffile ]]; then
          for i in $HOME/.backup.conf /etc/backup.conf; do 
@@ -242,6 +205,9 @@ configure () {
    # Test if BackupDir is there and is writable
    [[ -d $BackupDir ]] || die "Directory $BackupDir does not exist"
    [[ -w $BackupDir ]] || die "$BackupDir is not writable (for you)"
+   [[ $(stat -c%D "$BackupDir")  == $(stat -c%D /) ]] &&
+      Warn "backup directory is on the root device." "This is unsafe!!"
+
    # escape . in regexps:
    for i in "${!DirReToSkip[@]}"; do
       DirReToSkip[$i]="${DirReToSkip[$i]//./\\.}"
@@ -263,7 +229,7 @@ synopsis:	 latestof fileglob
 description:	print the newest file matching the fileglob
 DOC
 #-------------------------------------------------------------------------------
-latestof () {
+latestof() {
    local latest i
    for i; do
       [[ $i -nt $latest ]] && latest=$i
@@ -286,7 +252,7 @@ globals  set:	 selector newbackup
 globals used:	 full named
 DOC
 #-------------------------------------------------------------------------------
-setselector () {
+setselector() {
    warn setselector
    local lastfull lastpart n
    lastfull=$(latestof f[0-9][0-9][0-9].zip)
@@ -318,7 +284,7 @@ synopsis:	 human number_of_bytes
 description:	prints the number in human-readable form
 DOC
 #-------------------------------------------------------------------------------
-human () {
+human() {
    local u=' KMGTPEZY' s=$1 n=0
    while ((s > 1024)); do
       s=$((s>>10))
@@ -332,7 +298,7 @@ human () {
 description:	show the current backups
 DOC
 #-------------------------------------------------------------------------------
-showbackups () {
+showbackups() {
    warn showbackups
    local i s ss b l dt n f=0 p=0 t=0 gt=0
    pwd -P
@@ -363,7 +329,7 @@ globals  set:	 backupsfound
 globals used:	 workdir
 DOC
 #-------------------------------------------------------------------------------
-backupsof () {
+backupsof() {
    warn backupsof
    backupsfound=()
    local f="$workdir/$1" i l x
@@ -386,7 +352,7 @@ description:	extract |$workdir/filename| from the |index|th element of
 globals used:	 BackupDir backupsfound workdir
 DOC
 #-------------------------------------------------------------------------------
-extract () {
+extract() {
    local withdate=${3:-false} filename="$1" zipfilename="${workdir#/}/$1"
    local zip date out tim u=$SUDO_USER g
    g=$(groups "$u") g=${g%% *}
@@ -411,7 +377,7 @@ globals  set:	 COLUMNS
 globals used:	 backupsfound REPLY workdir
 DOC
 #-------------------------------------------------------------------------------
-restore () {
+restore() {
    warn restore
    local r f n date dt out 
    backupsof "$1"
@@ -450,7 +416,7 @@ restore () {
 description:	Update archive listings where necessary
 DOC
 #-------------------------------------------------------------------------------
-updatelistings () {
+updatelistings() {
    local i lis
    shopt -s nullglob
    for i in *.zip; do 
@@ -468,7 +434,7 @@ description:	Create a listing, sorted by decreasing size, of the contents of
 		listing to to the most recent regular file in the archive.
 DOC
 #-------------------------------------------------------------------------------
-list () {
+list() {
    local f=${1%.zip}
    unzip -lqq "$f"  |sort -rn >".$f" # this truncates the seconds!
    touch -d "$(
@@ -526,77 +492,73 @@ handle_options() {
   local options
   if ! options=$(getopt \
     -n "$Myname" \
-    -o hHVIc::fsr:vn:d \
-    -l help,Help,version,conf::,full,show,restore:,verbose,named:,dir,nocolor,web \
+    -o hHVIc:fsr:vn:d \
+    -l help,Help,version,conf:,full,show,restore:,verbose,named:,dir,nocolor,web \
     -- "$@"
   ); then exit 1; fi
   eval set -- "$options"
   
-  full=false show=false restore='' verbose=false named=''
+  full=false show=false restore='' verbose=false named='' showdir=false conffile=''
   while true; do
     case $1 in
-    (-h|--help)	   # print this help and exit
-		   helpsrt
-		   ;;
-    (-H|--Help)	   # print full documentation via less and exit
-		   helpall
-		   ;;
-    (-V|--version) # print version and exit
-		   echo $Version
-		   exit
-		   ;;
-    (-v|--verbose) # print intermediate messages for debugging
-		   verbose=true
-		   shift
-		   ;;
-    (-d|--dir)	   # show the backup directory path and exit
-		   echo "$BackupDir"
-		   exit
-		   ;;
-    (-c|--conf)	   # use optional |ARG| as the configuration file
-		   # with no argument: report conf file used and exit
-		   case $2 in
-		   (-)	echo use defaults
-			shift 2
+    (-h|--help)		# print this help and exit
+			helpsrt
 			;;
-		   ('') echo "$conffile"
+    (-H|--Help)		# print full documentation via less and exit
+			helpall
+			;;
+    (-V|--version)	# print version and exit
+			echo $Version
 			exit
 			;;
-		   (*)	conffile=$(eval realpath "$2")
+    (-v|--verbose)	# print intermediate messages for debugging
+			verbose=true
+			shift
+			;;
+    (-d|--dir)		# show the backup directory path and exit
+			showdir=true
+			shift
+			;;
+    (-c|--conf)		# use X as configuration file; if X is -, don’t read any
+			# configuration file and use defaults
+			if [[ $2 = '-' ]]; then
+			   conffile=-
+			else
+			   conffile=$(eval realpath "$2")
 			[[ -e $conffile ]] ||
 			die "Specified conf file $2 does not exist"
+			fi
 			shift 2
-		   esac
-		   ;;
+			;;
     # From here you must be root:
-    (-f|--full)	   # make a full backup
-		   full=true
-		   shift 
-		   ;;
-    (-s|--show)	   # Show a listing of the current backups
-		   show=true
-		   shift
-		   ;;
-    (-r|--restore) # Restore |ARG| in current directory
-		   [[ $2 =~ / ]] && die "File to restore may not contain /'s"
-		   restore="$2"
-		   shift 2
-		   ;;
-    (-n|--named)   # make partial backup to named |ARG|
-		   named="$2"
-		   [[ $named =~ ^[pf][[:digit:]]{3}$ ]] &&
-		   die "--named argument may not be pnnn or fnnn"
-		   shift 2
-		   ;;
-    (-I)	   instscript "$0" ||
-		      die 'the -I option is for developers only'
-		   exit
-		   ;;
-    (--)	   shift
-		   break
-		   ;;
-    (*)		   break
-		   ;;
+    (-f|--full)		# make a full backup
+			full=true
+			shift 
+			;;
+    (-s|--show)		# Show a listing of the current backups
+			show=true
+			shift
+			;;
+    (-r|--restore)	# Restore file X in current directory
+			[[ $2 =~ / ]] && die "File to restore may not contain /'s"
+			restore="$2"
+			shift 2
+			;;
+    (-n|--named)	# make partial backup to X.zip
+			named="$2"
+			[[ $named =~ ^[pf][[:digit:]]{3}$ ]] &&
+			die "--named argument may not be pnnn or fnnn"
+			shift 2
+			;;
+    (-I)		instscript "$0" ||
+			die 'the -I option is for developers only'
+			exit
+			;;
+    (--)		shift
+			break
+			;;
+    (*)			break
+			;;
     esac
   done
 }
@@ -610,13 +572,42 @@ helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
             less -P"$Myname-${Version/./·} (press h for help, q to quit)";exit; }
 
 # =============== Program starts here =============
+BackupDir=/backup-$(hostname -s)
+# Required. The directory where backups are stored. For safety reasons
+# you would normally make the backup directory (/backup) a mount point
+# for an other disk than the one(s) containing the information to be
+# backed up.
+
+DirsToSearch=(/home /etc)
+# Required. The directories which will be backed up.
+
+DirReToSkip=(t temp tmp [Cc]ache .thumbnails)
+# Directory names that will be pruned. No files in these directories and
+# their subdirectories will be backed up. You can only give base names
+# here, not paths. Note that these directories can occur anywhere, not
+# only in home directories.
+
+ExtReToSkip=(auk aux bak bku dep err lo[fgt] msf old swp tmp toc tok)
+# Files who's extensions match these will be skipped.
+
+BaseReToSkip=(t)
+
+FileReToSkip=(~$ '#$')
+# File regular expressions to skip: No files with names matcing any of
+# these expressions will be backed up.
+
 
 # Are all executables there?
 excheck getopt fold grep less sed tr unzip zip
 
-configure
 handle_options "$@"
-warn "Configuration: $conffile"
+configure
+warn "    BackupDir: $BackupDir"
+warn "  Config file: $conffile"
+warn " DirsToSearch: ${DirsToSearch[*]}"
+
+$showdir && echo "$BackupDir" && exit
+
 test $UID -eq 0 || die 'You must be root to run backup'
 workdir=$(pwd -P)
 cd "$BackupDir" || die "$BackupDir not found!"
@@ -690,6 +681,7 @@ if [ ! -s "$tmp" ]; then
 else
    ( cd /
      rm -f "$BackupDir/$newbackup"
+     warn "creating $BackupDir/$newbackup"
      zip -@q "$BackupDir/$newbackup" < "$tmp"
    )
    list "$newbackup"
