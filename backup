@@ -366,7 +366,7 @@ extract() {
    warn "restoring ${zipfilename##*/} as $out from ${zip##*/}"
    unzip -p "$BackupDir/$zip" "$zipfilename" > "$out"
    touch -t "${date/-/}" "$out"
-   chown "$u.$g" "$out"
+   chown "$u:$g" "$out"
 }
 
 :<<'DOC' #----------------------------------------------------------------------
