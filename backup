@@ -1,6 +1,6 @@
 #!/bin/bash
 
-Version=3.20
+Version=3.21
 Myname="${0##*/}"
 
 :<<'DOC'
@@ -165,7 +165,7 @@ Note that:
 	print debugging messages while running.
 
 = Author
-[Wybo Dekker](wybo@dekkerdocumenten.nl)
+[Wybo Dekker](wybodekker@me.com)
 
 = Copyright
 Released under the [GNU General Public License](www.gnu.org/copyleft/gpl.html)
@@ -615,7 +615,7 @@ updatelistings
 [[ -n $restore ]] && { restore "$restore"; exit; }
 $show && showbackups
 
-umask u=rwx,g=,o=
+umask u=rwx,g=r,o=
 setselector
 tmp=$(mktemp -t "$Myname.XXXXXXXXXX")
 trap 'rm -f $tmp' 0 1 2 15
