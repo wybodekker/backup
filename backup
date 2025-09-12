@@ -1,6 +1,6 @@
 #!/bin/bash
 
-Version=3.21
+Version=3.22
 Myname="${0##*/}"
 
 :<<'DOC'
@@ -347,8 +347,8 @@ backupsof() {
 = extract
 synopis:	extract filename index withdate
 description:	extract |$workdir/filename| from the |index|th element of
-		|backupsfound| appending the date of the element if
-		|withdate| is true
+                |backupsfound| appending a '-' plus the date at the end of
+                the basename of the element if |withdate| is true
 globals used:	 BackupDir backupsfound workdir
 DOC
 #-------------------------------------------------------------------------------
@@ -359,7 +359,9 @@ extract() {
    read -r zip date date tim <<<"${backupsfound[$2]}"
    date=${date//-/}-${tim//:/}
    if $withdate; then 
-      out="$filename-$date"
+      [[ $filename == *.* ]] &&
+         out="${filename%.*}-${date}.${filename##*.}" ||
+         out="${filename}-${date}"
    else
       out="$filename"
    fi
