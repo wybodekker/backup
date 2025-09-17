@@ -88,12 +88,17 @@ configuration files, and uses the first it encounters:
 1. a file specified with the |--conf| option; if |--conf=-|
    or |-c-| was specified, no configuration file will be
    read at all and the above defaults will be used.
-2. |~/.backup.conf|, if it exists
+2. |~/.backup.conf|, if it exists; note that |~| points to root's
+   home directory, since you need to run backup as root!
 3. |/etc/backup.conf|, if it exists
 
 Note that:
 - A configuration file containing the default settings shown above would
   have no effect.
+
+- You should probably better not use variables, such as $USER or $local,
+  in your configuration file. Those may have unexpected values, especially
+  when you (necessarily) use sudo to run backup.
 
 - If you put alternative values for only one or a few variable in your
   configuration file, the other variables keep their default values.
@@ -210,17 +215,25 @@ configure() {
 
    # escape . in regexps:
    for i in "${!DirReToSkip[@]}"; do
-      DirReToSkip[$i]="${DirReToSkip[$i]//./\\.}"
+      DirReToSkip[i]="${DirReToSkip[$i]//./\\.}"
    done
    for i in "${!ExtReToSkip[@]}";
-      do ExtReToSkip[$i]="${ExtReToSkip[$i]//./\\.}"
+      do ExtReToSkip[i]="${ExtReToSkip[$i]//./\\.}"
    done
    for i in "${!BaseReToSkip[@]}";
-      do BaseReToSkip[$i]="${BaseReToSkip[$i]//./\\.}"
+      do BaseReToSkip[i]="${BaseReToSkip[$i]//./\\.}"
    done
    for i in "${!FileReToSkip[@]}";
-      do FileReToSkip[$i]="${FileReToSkip[$i]//./\\.}"
+      do FileReToSkip[i]="${FileReToSkip[$i]//./\\.}"
    done
+   verbarr  DirReToSkip
+   warn   "  > Note that files skipped by DirReToSkip will never be reported,"
+   warn   "  > because it is used to modify the find call"
+   verbarr DirsToSearch
+   verbarr  ExtReToSkip
+   verbarr BaseReToSkip
+   verbarr FileReToSkip
+   warn
 }
 
 :<<'DOC' #----------------------------------------------------------------------
@@ -457,8 +470,9 @@ DOC
 #-------------------------------------------------------------------------------
 verbarr() {
    $verbose || return
+   declare -n arr="$1"
    printf '\n%15s' "$1:  "
-   eval "echo \"\${$1[@]}\"→"|
+   echo "${arr[*]}→"|
 	 fold -bs -w 50|
 	 sed '2,$s/^/               /;1,$s/$/ \\/;s/→ \\//'
 } 1>&2
@@ -565,13 +579,18 @@ handle_options() {
   done
 }
 
-REd='\e[38;5;1m' Mag='\e[38;5;5m' Nor='\e[0m'
-    die() { local i; for i; do echo -e "$Myname: $REd$i$Nor"; done 1>&2; exit 1; }
-   Warn() { local i; for i; do echo -e "$Myname: $Mag$i$Nor"; done 1>&2; }
+Red='' Mag='' Nor=''
+[ -t 1 ] && command -v tput >/dev/null && (( $(tput colors) >= 8 )) && { 
+  Red=$(tput bold && tput setaf 1) 
+  Mag=$(tput bold && tput setaf 5) 
+  Nor=$(tput sgr0)
+} 
+    die() { local i; for i; do echo -e "$Myname: $Red$i$Nor"; done >&2; exit 1; } 
+   Warn() { local i; for i; do echo -e "$Myname: $Mag$i$Nor"; done >&2; } 
    warn() { $verbose && Warn "$@"; }
-helpsrt() { sed -n '/^= Synopsis/,/^= /p' "$0"|sed '1d;$d'; exit; }
-helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
-            less -P"$Myname-${Version/./·} (press h for help, q to quit)";exit; }
+helpsrt() { sed -n '/^= Synopsis/,/^= /p' "$0"|sed '1d;$d'; exit 0; } 
+helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'| 
+            less -P"$Myname-${Version/./·} (press h for help, q to quit)";exit 0; }
 
 # =============== Program starts here =============
 BackupDir=/backup-$(hostname -s)
@@ -626,20 +645,12 @@ dirskipexp=
 if [[ ${#DirReToSkip[@]} -gt 0 ]]; then
    dirskipexp='-type d \('
    for i in "${DirReToSkip[@]}"; do
-      dirskipexp+=" -name '$i' -o "
+      dirskipexp+=" -name '$i' -o"
    done
-   dirskipexp="${dirskipexp%-o }\\) -prune -o "
+   dirskipexp="${dirskipexp%-o}\\) -prune -o "
 fi
-verbarr  DirReToSkip
-warn   "  > Note that files skipped by DirReToSkip will never be reported,"
-warn   "  > because it is used to modify the find call"
 verbarr   dirskipexp
 verbarr     selector
-verbarr DirsToSearch
-verbarr  ExtReToSkip
-verbarr BaseReToSkip
-verbarr FileReToSkip
-warn
 warn "Starting file search"
 
 for d in "${DirsToSearch[@]}"; do
