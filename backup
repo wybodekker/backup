@@ -1,15 +1,16 @@
 #!/bin/bash
 
-Version=3.22
+Version=3.23
 Myname="${0##*/}"
 
-:<<'DOC'
+doc=$(cat \
+<<'DOC'
 = backup - backup and restore, full or partial
 
 = Synopsis
 backup [options]	
 
-== Options
+= Options
 -h|--help	print this help and exit
 -H|--Help	print full documentation via less and exit
 -V|--version	print version and exit
@@ -175,6 +176,16 @@ Note that:
 = Copyright
 Released under the [GNU General Public License](www.gnu.org/copyleft/gpl.html)
 DOC
+)
+
+# --- colors, help from embedded doc, die and warn ---------------------------------
+[ -t 1 ] && { Red=$'\e[1;31m' Mag=$'\e[1;35m' Nor=$'\e[0m'; } || Red='' Mag='' Nor=''
+nv="-$Myname-${Version/./\\.} (press h for help, q to quit)"
+helpsrt() { sed -n '/^= Synopsis/,/^= Desc/{//d;p}' <<<"$doc"; exit; }
+helpall() { less -P"$nv" <<<"$doc"; exit; }
+    die() { printf "%s$Nor\n" "${@/#/$Myname: $Red}" >&2; exit 1; }
+   Warn() { printf "%s$Nor\n" "${@/#/$Myname: $Mag}" >&2; }
+   warn() { $verbose && Warn "$@"; }
 
 :<<'DOC' #----------------------------------------------------------------------
 = configure
@@ -578,19 +589,6 @@ handle_options() {
     esac
   done
 }
-
-Red='' Mag='' Nor=''
-[ -t 1 ] && command -v tput >/dev/null && (( $(tput colors) >= 8 )) && { 
-  Red=$(tput bold && tput setaf 1) 
-  Mag=$(tput bold && tput setaf 5) 
-  Nor=$(tput sgr0)
-} 
-    die() { local i; for i; do echo -e "$Myname: $Red$i$Nor"; done >&2; exit 1; } 
-   Warn() { local i; for i; do echo -e "$Myname: $Mag$i$Nor"; done >&2; } 
-   warn() { $verbose && Warn "$@"; }
-helpsrt() { sed -n '/^= Synopsis/,/^= /p' "$0"|sed '1d;$d'; exit 0; } 
-helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'| 
-            less -P"$Myname-${Version/./·} (press h for help, q to quit)";exit 0; }
 
 # =============== Program starts here =============
 BackupDir=/backup-$(hostname -s)
