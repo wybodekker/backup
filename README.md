@@ -28,6 +28,7 @@ backup and restore, full or partial
 |-d,--dir	|show the backup directory path and exit|
 |-c,--conf=X	|use X as configuration file; if X is -, don’t read any|
 |		|configuration file and use defaults|
+|**root only:**||
 |-f,--full	|make a full backup|
 |-s,--show	|Show a listing of the current backups|
 |-r,--restore=X	|Restore file X in current directory|
