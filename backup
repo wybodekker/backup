@@ -11,20 +11,19 @@ doc=$(cat \
 backup [options]	
 
 = Options
--h|--help	print this help and exit
--H|--Help	print full documentation via less and exit
--V|--version	print version and exit
--v|--verbose	print intermediate messages for debugging
--d|--dir	show the backup directory path and exit
--c|--conf=X	use X as configuration file; if X is -, don’t read any
+-h,--help	print this help and exit
+-H,--Help	print full documentation via less and exit
+-V,--version	print version and exit
+-v,--verbose	print intermediate messages for debugging
+-d,--dir	show the backup directory path and exit
+-c,--conf=X	use X as configuration file; if X is -, don’t read any
 		configuration file and use defaults
 
 == From here you must be root:
-
--f|--full	make a full backup
--s|--show	Show a listing of the current backups
--r|--restore=X	Restore file X in current directory
--n|--named=X	make partial backup to X.zip
+-f,--full	make a full backup
+-s,--show	Show a listing of the current backups
+-r,--restore=X	Restore file X in current directory
+-n,--named=X	make partial backup to X.zip
 
 = Description
 Back up files into zip compressed archives, or restore files from those.
@@ -118,7 +117,7 @@ Note that:
   |ExtReToSkip=(log)| or with |BaseReToSkip=('*.log')| or with
   |FileReToSkip=('\.log$')|.
 
-= Options
+= Option details
 -h,--help	
 	prints help information and then exits
 -H,--Help	
@@ -557,7 +556,7 @@ handle_options() {
 			fi
 			shift 2
 			;;
-    # From here you must be root:
+    ## From here you must be root:
     (-f|--full)		# make a full backup
 			full=true
 			shift 
